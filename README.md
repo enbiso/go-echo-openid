@@ -1,6 +1,6 @@
 # go-echo-openid
 
-## Middleware extension for go echo framework
+## OpenID middleware extension for go echo framework
 
 golang echo openid middleware based on JWKS link
 
