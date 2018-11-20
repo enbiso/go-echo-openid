@@ -28,47 +28,76 @@ type JSONWebKeys struct {
 
 // OpenIDConfig structure
 type OpenIDConfig struct {
-	JwksURI string `json:"jwks_uri"`
+	JwksURI         string `json:"jwks_uri"`
+	UserInfoEnpoint string `json:"userinfo_endpoint"`
 }
 
 // JWTOpenIDConfig struct
 type JWTOpenIDConfig struct {
 	middleware.JWTConfig
-	AuthEndpoint string
-	KeyID        string
+	Authority string
+	KeyID     string
+	Audience  string
+}
+
+// UserInfo struct
+type UserInfo struct {
+	Sub               string `json:"sub"`
+	PreferredUsername string `json:"preferred_username"`
+	Name              string `json:"name"`
+	Email             string `json:"email"`
+	EmailVerified     bool   `json:"email_verified"`
 }
 
 // JWTWithOpenID middleware creation
 func JWTWithOpenID(config JWTOpenIDConfig) echo.MiddlewareFunc {
-	loadJwk(config.AuthEndpoint, config.KeyID)
+	loadJwk(config.Authority, config.KeyID)
 	cert := "-----BEGIN CERTIFICATE-----\n" + jwk.X5c[0] + "\n-----END CERTIFICATE-----"
 	signingKey, _ := jwt.ParseRSAPublicKeyFromPEM([]byte(cert))
 	return middleware.JWTWithConfig(middleware.JWTConfig{
-		SigningKey:     signingKey,
-		SigningMethod:  jwk.ALG,
-		AuthScheme:     config.AuthScheme,
-		BeforeFunc:     config.BeforeFunc,
-		Claims:         config.Claims,
-		ContextKey:     config.ContextKey,
-		ErrorHandler:   config.ErrorHandler,
-		Skipper:        config.Skipper,
-		SuccessHandler: config.SuccessHandler,
-		TokenLookup:    config.TokenLookup,
+		SigningKey:    signingKey,
+		SigningMethod: jwk.ALG,
+		AuthScheme:    config.AuthScheme,
+		BeforeFunc:    config.BeforeFunc,
+		Claims:        config.Claims,
+		ContextKey:    config.ContextKey,
+		ErrorHandler:  config.ErrorHandler,
+		Skipper:       config.Skipper,
+		SuccessHandler: func(c echo.Context) {
+
+			if config.SuccessHandler != nil {
+				config.SuccessHandler(c)
+			}
+		},
+		TokenLookup: config.TokenLookup,
 	})
 }
 
+// GetUserInfo method
+func GetUserInfo() UserInfo {
+	userInfoResp, _ := http.Get(cfg.UserInfoEnpoint)
+	userInfo := UserInfo{}
+	json.NewDecoder(userInfoResp.Body).Decode(&userInfo)
+	return userInfo
+}
+
+// GetAudience method
+func GetAudience(token jwt.Token) {
+
+}
+
 var jwk *JSONWebKeys
+var cfg = &OpenIDConfig{}
 
 func loadJwk(endpoint string, kid string) error {
 	if jwk != nil {
 		return nil
 	}
-	cfgResp, err := http.Get(endpoint + ".well-known/openid-configuration")
+	cfgResp, err := http.Get(endpoint + "/.well-known/openid-configuration")
 	if err != nil {
 		return err
 	}
-	var cfg = OpenIDConfig{}
-	err = json.NewDecoder(cfgResp.Body).Decode(&cfg)
+	err = json.NewDecoder(cfgResp.Body).Decode(cfg)
 	if err != nil {
 		return err
 	}
