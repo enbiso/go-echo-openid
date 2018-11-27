@@ -34,10 +34,10 @@ type OpenIDConfig struct {
 
 // JWTOpenIDConfig struct
 type JWTOpenIDConfig struct {
-	middleware.JWTConfig
-	Authority string
-	KeyID     string
-	Audience  string
+	Authority      string
+	Audience       string
+	KeyID          string
+	SuccessHandler func(c echo.Context)
 }
 
 // UserInfo struct
@@ -57,19 +57,11 @@ func JWTWithOpenID(config JWTOpenIDConfig) echo.MiddlewareFunc {
 	return middleware.JWTWithConfig(middleware.JWTConfig{
 		SigningKey:    signingKey,
 		SigningMethod: jwk.ALG,
-		AuthScheme:    config.AuthScheme,
-		BeforeFunc:    config.BeforeFunc,
-		Claims:        config.Claims,
-		ContextKey:    config.ContextKey,
-		ErrorHandler:  config.ErrorHandler,
-		Skipper:       config.Skipper,
 		SuccessHandler: func(c echo.Context) {
-
 			if config.SuccessHandler != nil {
 				config.SuccessHandler(c)
 			}
 		},
-		TokenLookup: config.TokenLookup,
 	})
 }
 
@@ -79,11 +71,6 @@ func GetUserInfo() UserInfo {
 	userInfo := UserInfo{}
 	json.NewDecoder(userInfoResp.Body).Decode(&userInfo)
 	return userInfo
-}
-
-// GetAudience method
-func GetAudience(token jwt.Token) {
-
 }
 
 var jwk *JSONWebKeys
