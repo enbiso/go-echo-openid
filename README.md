@@ -2,5 +2,5 @@
 
 Common util packages for golang
 
-1. [Echo API framework middlewares](./tree/master/echomiddleware)
+1. [Echo API framework middlewares](echomiddleware)
 
