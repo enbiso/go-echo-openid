@@ -1,6 +1,7 @@
 package echomiddleware
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 
@@ -86,7 +87,8 @@ func JWTWithOpenID(config JWTOpenIDConfig) echo.MiddlewareFunc {
 				}
 			}
 
-			if !claims.VerifyAudience(config.Audience, true) {
+			//if !claims.VerifyAudience(config.Audience, true) {
+			if verifyAudience(claims, config.Audience, true) {
 				return &echo.HTTPError{
 					Code:    http.StatusUnauthorized,
 					Message: "invalid token audience",
@@ -94,6 +96,33 @@ func JWTWithOpenID(config JWTOpenIDConfig) echo.MiddlewareFunc {
 			}
 			return next(c)
 		})
+	}
+}
+
+func verifyAudience(m jwt.MapClaims, cmp string, req bool) bool {
+	switch m["aud"].(type) {
+	case string:
+		aud := m["aud"].(string)
+		return verifyAud(aud, cmp, req)
+	default:
+		auds := m["aud"].([]interface{})
+		for _, aud := range auds {
+			if verifyAud(aud.(string), cmp, req) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func verifyAud(aud string, cmp string, required bool) bool {
+	if aud == "" {
+		return !required
+	}
+	if subtle.ConstantTimeCompare([]byte(aud), []byte(cmp)) != 0 {
+		return true
+	} else {
+		return false
 	}
 }
 
