@@ -54,7 +54,8 @@ func JWTWithOpenID(config JWTOpenIDConfig) echo.MiddlewareFunc {
 	loadJwk(config.Authority, config.KeyID)
 	cert := "-----BEGIN CERTIFICATE-----\n" + jwk.X5c[0] + "\n-----END CERTIFICATE-----"
 	signingKey, _ := jwt.ParseRSAPublicKeyFromPEM([]byte(cert))
-	return middleware.JWTWithConfig(middleware.JWTConfig{
+
+	mware := middleware.JWTWithConfig(middleware.JWTConfig{
 		SigningKey:    signingKey,
 		SigningMethod: jwk.ALG,
 		SuccessHandler: func(c echo.Context) {
@@ -63,6 +64,37 @@ func JWTWithOpenID(config JWTOpenIDConfig) echo.MiddlewareFunc {
 			}
 		},
 	})
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return mware(func(c echo.Context) error {
+			token := c.Get("user").(*jwt.Token)
+			claims := token.Claims.(jwt.MapClaims)
+
+			err := claims.Valid()
+			if err != nil {
+				return &echo.HTTPError{
+					Code:     http.StatusUnauthorized,
+					Message:  "invalid token claim",
+					Internal: err,
+				}
+			}
+
+			if !claims.VerifyIssuer(config.Authority, true) {
+				return &echo.HTTPError{
+					Code:    http.StatusUnauthorized,
+					Message: "invalid token issuer",
+				}
+			}
+
+			if !claims.VerifyAudience(config.Audience, true) {
+				return &echo.HTTPError{
+					Code:    http.StatusUnauthorized,
+					Message: "invalid token audience",
+				}
+			}
+			return next(c)
+		})
+	}
 }
 
 // GetUserInfo method
