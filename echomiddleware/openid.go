@@ -35,9 +35,13 @@ type OpenIDConfig struct {
 
 // JWTOpenIDConfig struct
 type JWTOpenIDConfig struct {
-	Authority      string
-	Audience       string
-	KeyID          string
+	// Authentication endpoint for openID auth
+	Authority string
+	// KID (key ID) that has used for signing. Ignore this if you want to use the first default key
+	KeyID string
+	// Audience to be verified
+	Audience string
+	// Success handler
 	SuccessHandler func(c echo.Context)
 }
 
