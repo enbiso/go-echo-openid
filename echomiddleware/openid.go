@@ -3,6 +3,7 @@ package echomiddleware
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -56,7 +57,11 @@ type UserInfo struct {
 
 // JWTWithOpenID middleware creation
 func JWTWithOpenID(config JWTOpenIDConfig) echo.MiddlewareFunc {
-	loadJwk(config.Authority, config.KeyID)
+	err := loadJwk(config.Authority, config.KeyID)
+	if err != nil {
+		fmt.Print(err.Error())
+		return nil
+	}
 	cert := "-----BEGIN CERTIFICATE-----\n" + jwk.X5c[0] + "\n-----END CERTIFICATE-----"
 	signingKey, _ := jwt.ParseRSAPublicKeyFromPEM([]byte(cert))
 
